@@ -29,8 +29,8 @@ M = 0
 
 dt = 0.001
 
-kontroler_x = PID(2, 0, 0, dt)  # C3
-kontroler_dx = PID(0.02, 0, 0, dt)  # C2
+kontroler_x = PID(0.3, 0.0, 0.2, dt)  # C3
+kontroler_dx = PID(0.045, 0, 0, dt)  # C2
 kontroler_th = PID(-2.67, 0.0, -1.107, dt)  # C1, Ku = -2.67
 
 
@@ -97,7 +97,7 @@ kraj = 0
 successes, failures = pygame.init()
 print("{0} successes and {1} failures".format(successes, failures))
 
-screen = pygame.display.set_mode((1500, 512))
+screen = pygame.display.set_mode((1000, 512))
 clock = pygame.time.Clock()
 # FPS = 60  # Frames per second.
 
@@ -109,8 +109,8 @@ BLUE = (0, 0, 255)
 
 pixels_per_meter = 1000
 
+zeljena_pozicija = 0.5
 for i in range(broj_iteracija):
-    zeljena_pozicija = 0.5
     zeljena_brzina = kontroler_x.izracunaj(zeljena_pozicija - x)  # C3
     zeljeni_ugao = kontroler_dx.izracunaj(zeljena_brzina - pr_izvod_x)  # C2
     moment_sile = kontroler_th.izracunaj(zeljeni_ugao - th)  # C1
@@ -127,6 +127,12 @@ for i in range(broj_iteracija):
     # clock.tick(FPS)
 
     ev = pygame.event.get()
+    for event in ev:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                zeljena_pozicija -= 0.05
+            if event.key == pygame.K_RIGHT:
+                zeljena_pozicija += 0.05
 
     screen.fill(WHITE)
     r_pix = r * pixels_per_meter
@@ -139,6 +145,7 @@ for i in range(broj_iteracija):
     pygame.draw.circle(screen, PINK, circle_centar, r_pix)
     pygame.draw.line(screen, BLUE, circle_centar, balansero_tip)
     pygame.draw.circle(screen, GREEN, balansero_mass, r_pix/3)
+    pygame.draw.circle(screen, (0, 0, 0), (1000 * zeljena_pozicija, 510), 5)
     pygame.display.update()
 
     # x0, th0 = plant(0, time_step[i])
