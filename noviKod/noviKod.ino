@@ -2,6 +2,8 @@
 #include <Encoder.h>
 
 #define UGAO_PO_IMPULSU 360.0 / 8000.0
+#define directionPin 8
+#define ledPin 9
 
 const int MPU = 0x68; // MPU6050 I2C address
 float AccX, AccY, AccZ;
@@ -17,10 +19,26 @@ int c = 0;
 unsigned long dt = 5000;
 unsigned long previous_time = 0;
 
+volatile int counter; 
 
-float enkoder_ugao() {
-  static Encoder enkoder(2, 3);
-  return UGAO_PO_IMPULSU * enkoder.read();
+int motor1pin1 = 4;
+int motor1pin2 = 5;
+
+
+float enkoder() {
+  //static Encoder enkoder(2, 3);
+  if(digitalRead(2)) counter++;
+  else counter--;
+  //return UGAO_PO_IMPULSU * enkoder.read();
+}
+
+float readEncoderData(){
+  return counter/(2*PI);
+  }
+
+void driveMotor(int speed){
+  if(speed>0){digitalWrite(directionPin,LOW);analogWrite(ledPin,abs(speed));};
+  if(speed<=0){digitalWrite(directionPin,HIGH);analogWrite(ledPin,255-abs(speed));};
 }
 
 
@@ -29,6 +47,13 @@ void setup() {
   
   MPU6050_initialization();
   delay(20);
+
+  pinMode(motor1pin1, INPUT_PULLUP);
+  pinMode(motor1pin2, INPUT_PULLUP);
+  pinMode(directionPin,OUTPUT);
+  attachInterrupt(digitalPinToInterrupt(3), enkoder, RISING);
+
+  calculate_IMU_error();
 }
 
 
@@ -51,11 +76,11 @@ float read_accel_data() {
   float AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0; // Z-axis value
   
   // Calculating Roll and Pitch from the accelerometer data
-  float accAngleX = atan(AccY / sqrt(pow(AccX, 2) + pow(AccZ, 2))) + degree_to_radian(1.11); // AccErrorX ~(-1.11) See the calculate_IMU_error()custom function for more details
-  float accAngleY = atan(-1 * AccX / sqrt(pow(AccY, 2) + pow(AccZ, 2))) + degree_to_radian(3.37); // AccErrorY ~(-3.37)
+  float accAngleX = atan(AccY / sqrt(pow(AccX, 2) + pow(AccZ, 2))) - AccErrorX; // AccErrorX ~(-1.11) See the calculate_IMU_error()custom function for more details
+  float accAngleY = atan(-1 * AccX / sqrt(pow(AccY, 2) + pow(AccZ, 2))) - AccErrorY; // AccErrorY ~(-3.37)
 
   //return accAngleX;
-  return accAngleY; 
+  return accAngleY;
 }
 
 float read_gyro_data() {
@@ -65,16 +90,15 @@ float read_gyro_data() {
   Wire.endTransmission(false);
   Wire.requestFrom(MPU, 6, true); // Read 4 registers total, each axis value is stored in 2 registers
 
-  
   const float gyro_to_radian = PI/(180.0*131.0); // 131.0 is from datasheet
   float GyroX = (Wire.read() << 8 | Wire.read()) * gyro_to_radian; // For a 250deg/s range we have to divide first the raw value by 131.0, according to the datasheet
   float GyroY = (Wire.read() << 8 | Wire.read()) * gyro_to_radian;
   float GyroZ = (Wire.read() << 8 | Wire.read()) * gyro_to_radian;
   
   // Correct the outputs with the calculated error values
-  GyroX = GyroX + degree_to_radian(2.68); // GyroErrorX ~(-2.68)
-  GyroY = GyroY + degree_to_radian(1.92); // GyroErrorY ~(-1.92)
-  GyroZ = GyroZ + degree_to_radian(1.18); // GyroErrorZ ~ (-1.18)
+  GyroX = GyroX - GyroErrorX; // GyroErrorX ~(-2.68)
+  GyroY = GyroY - GyroErrorY; // GyroErrorY ~(-1.92)
+  GyroZ = GyroZ - GyroErrorZ; // GyroErrorZ ~ (-1.18)
 
   //return GyroX;
   return GyroY;
@@ -153,6 +177,14 @@ void loop() {
   while(micros() < previous_time + dt) {}
   previous_time = micros();
 
-  Serial.println(enkoder_ugao());
+  float enkoder_ugao = readEncoderData();
 
+  Serial.println(enkoder_ugao);
+
+  // kontroler
+  if (enkoder_ugao > 0) counter ++;
+  else counter --;
+
+  driveMotor(counter);
+  delay(1000);
 }
