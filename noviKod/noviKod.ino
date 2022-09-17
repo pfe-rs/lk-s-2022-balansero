@@ -15,6 +15,7 @@ float yaw = 0;
 float AccErrorX, AccErrorY, GyroErrorX, GyroErrorY, GyroErrorZ;
 float elapsedTime, currentTime, previousTime;
 int c = 0;
+float motor_input;
 
 unsigned long dt = 5000;
 unsigned long previous_time = 0;
@@ -27,6 +28,8 @@ unsigned long previous_time = 0;
 int enB = 10;
 int i_p3 = 4;
 int i_p4 = 5;
+
+int motorMin = 100;
 
 volatile int counter;
 //volatile int totalCounter;
@@ -42,9 +45,18 @@ float readEncoderData(){
   return counter/(2*PI);
   }
 
-void driveMotor(int speed){
-  //if(speed>0){digitalWrite(directionPin,LOW);analogWrite(ledPin,abs(speed));};
-  //if(speed<=0){digitalWrite(directionPin,HIGH);analogWrite(ledPin,255-abs(speed));};
+void driveMotor(float speed){
+  int val = motorMin + (int)((255-motorMin + 1)*speed);
+  if(speed>0.0) {
+    digitalWrite(i_p3, LOW);
+    digitalWrite(i_p4, HIGH);
+    analogWrite(enB, val);
+  }
+  else {
+    digitalWrite(i_p3, HIGH);
+    digitalWrite(i_p4, LOW);
+    analogWrite(enB, val);
+  }
 }
 
 
@@ -213,34 +225,13 @@ void loop() {
 
   // kontroler
 
-    analogWrite(enB, 100);
-  digitalWrite(i_p3, LOW);
-  digitalWrite(i_p4, HIGH);
-    delay(3000);
-  // Accelerate
-  /*for (int i = 0; i < 255; i++)
-  {
-    analogWrite(enB, 255);
-    Serial.println(i);
-    delay(30);
-  }
-  // Decelerate
-  for (int j = 255; j >= 0; --j)
-  {
-    analogWrite(enB, j);
-    Serial.println(j);
-    delay(30);
-  }*/
+  motor_input = -pitch/20;
+  driveMotor(motor_input);
   
-    analogWrite(enB, 100);
-  digitalWrite(i_p3, HIGH);
-  digitalWrite(i_p4, LOW);
-    delay(3000);
-  
-
-//
-//  motor_input = 0;
-//  driveMotor(motor_input);
+  Serial.print(pitch);
+  Serial.print(" ");
+  Serial.print(motor_input);
+  Serial.println();
 
   // Time control
   while(micros() < previous_time + dt) {}
